@@ -27,5 +27,9 @@ bot = commands.Bot(
     intents=intents
 )
 
+# Loading Cogs
+bot.load_extension('cogs.events')
+bot.load_extension('cogs.commands')
+
 # Running Bot from Bot Token
 bot.run(token=cfg['bot']['token'])
