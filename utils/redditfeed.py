@@ -47,8 +47,8 @@ class RedditFeed():
         # Searching subreddit by name
         subreddits = self.reddit.subreddits.search_by_name(subreddit_name, exact=True)
         try:
-            async for subreddit in subreddits:
-                subreddit = subreddit
+            async for sr in subreddits:
+                subreddit = sr
         except asyncprawcore.exceptions.NotFound:
             raise exceptions.SubredditNotFound(subreddit_name)
 
@@ -65,7 +65,7 @@ class RedditFeed():
         # Creating task for feeding
         task = self.bot.loop.create_task(
             self.subreddit_feeder(subreddit, channel),
-            name=f'RedditFeed_{channel.id}_{subreddit_name}'
+            name=f'RedditFeed_{channel.id}_{subreddit.display_name}'
         )
         task.subreddit = subreddit.display_name
         task.channel = channel.id
@@ -98,8 +98,7 @@ class RedditFeed():
                 task.cancel('Stopped feeding')
                 self.feeders[guild_id].remove(task)
                 return True
-            else:
-                continue
+            continue
         return False
 
     def feed_stop_all(self) -> None:
