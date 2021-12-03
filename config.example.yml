@@ -1,3 +1,16 @@
 bot:
-  token: "Discord Bot Token"
-  prefix: "r!"
+  token: "" # Discord bot authorization token
+  prefix: "dr!" # Discord bot prefix
+
+reddit:
+  # User Agent (https://github.com/reddit-archive/reddit/wiki/API#rules)
+  # <platform>:<app ID>:<version string> (by /u/<reddit username>)
+  user-agent: "unknown:Disreddit:1.0 (by /u/<your_username>)"
+
+  # Reddit application credentials (https://www.reddit.com/prefs/apps)
+  client-id: "" # Client ID
+  client-secret: "" # Client Secret
+
+  # Reddit user credentials (optional)
+  username: "" # Username to login
+  password: "" # Password of account

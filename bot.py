@@ -17,10 +17,12 @@ log.info('Starting disnake {0} {1}...'.format(
     disnake.__version__, disnake.version_info.releaselevel
 ))
 
-# Initialize Bot Class
+# Prepare Gateway Intents
 intents = disnake.Intents.none()
 intents.guilds = True
 intents.guild_messages = True
+
+# Initialize Bot Class
 bot = commands.Bot(
     command_prefix=cfg['bot']['prefix'],
     help_command=None,
