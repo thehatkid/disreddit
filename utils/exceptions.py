@@ -36,3 +36,12 @@ class SubredditIsNSFW(Exception):
 
     def __str__(self):
         return 'Subreddit "{0}" is NSFW (over 18) but Channel is not NSFW marked'.format(self.name)
+
+class FeedExists(Exception):
+    """Raised when the feed is exists in guild/channel."""
+
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        return 'Feeder is exists in guild tasks'

@@ -44,6 +44,15 @@ class RedditFeed():
         if channel.permissions_for(bot_user).send_messages is False:
             raise exceptions.CannotSendMessages()
 
+        # If don't have guild task list in dict, putting empty list
+        if not channel.guild.id in self.feeders:
+            self.feeders[channel.guild.id] = []
+        else:
+            # Else check for existing tasks
+            for task in self.feeders[channel.guild.id]:
+                if task.subreddit.lower() == subreddit_name.lower() and task.channel == channel.id:
+                    raise exceptions.FeedExists()
+
         # Searching subreddit by name
         subreddits = self.reddit.subreddits.search_by_name(subreddit_name, exact=True)
         try:
@@ -57,6 +66,8 @@ class RedditFeed():
             await subreddit.load()
         except asyncprawcore.exceptions.Forbidden:
             raise exceptions.SubredditIsPrivate(subreddit_name)
+        except asyncprawcore.exceptions.NotFound:
+            raise exceptions.SubredditNotFound(subreddit_name)
 
         # If subreddit is NSFW but channel not NSFW marked
         if subreddit.over18 and not channel.is_nsfw():
@@ -70,12 +81,10 @@ class RedditFeed():
         task.subreddit = subreddit.display_name
         task.channel = channel.id
 
-        # If don't have guild task list in dict, putting empty list
-        if not channel.guild.id in self.feeders:
-            self.feeders[channel.guild.id] = []
-
         # Appending task to guild task list in dict
         self.feeders[channel.guild.id].append(task)
+
+        return subreddit.display_name
 
     def feed_stop(self, subreddit_name: str, guild_id: int, channel_id: int) -> bool:
         """
@@ -97,7 +106,7 @@ class RedditFeed():
             if task_subreddit == subreddit_name.lower() and task_channel == channel_id:
                 task.cancel('Stopped feeding')
                 self.feeders[guild_id].remove(task)
-                return True
+                return task.subreddit
             continue
         return False
 

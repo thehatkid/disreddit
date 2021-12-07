@@ -1,5 +1,7 @@
 import logging
 import utils
+import asyncio
+from databases import Database
 import disnake
 from disnake.ext import commands
 
@@ -10,7 +12,26 @@ log = logging.getLogger(__name__)
 class CogCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.db: Database = bot.db
         self.feeder = utils.redditfeed.RedditFeed(bot)
+
+    def cog_load(self):
+        async def run_feeders(db: Database, feeder: utils.redditfeed.RedditFeed):
+            while True:
+                if not db.is_connected:
+                    await asyncio.sleep(0.5)
+                else:
+                    break
+            feeds = await db.fetch_all('SELECT channel_id, subreddit FROM feeds')
+            for feed in feeds:
+                log.info(f'Trying to start feed "{feed[1]}" for channel {feed[0]}...')
+                try:
+                    await feeder.feed_start(feed[1], feed[0])
+                except Exception as e:
+                    log.error(f'Failed to start feed "{feed[1]}" for channel {feed[0]}: {e}')
+                else:
+                    log.info(f'Started feed "{feed[1]}" for channel {feed[0]}')
+        self.bot.loop.create_task(run_feeders(self.db, self.feeder))
 
     def cog_unload(self):
         self.feeder.feed_stop_all()
@@ -41,7 +62,7 @@ class CogCommands(commands.Cog):
         if not channel:
             channel = ctx.channel
         if not channel.permissions_for(ctx.author).manage_channels:
-            return await ctx.send(':x: You don\'t have `Manage Channels` permssion to subscribing feed.')
+            return await ctx.send(':x: You don\'t have `Manage Channels` permission to subscribing feed.')
 
         try:
             guild_tasks = self.feeder.feeders[ctx.guild.id]
@@ -52,15 +73,13 @@ class CogCommands(commands.Cog):
             if len(guild_tasks) >= 5:
                 return await ctx.send(f':x: Reached limit of feeds (max: 5) in this server.')
             for task in guild_tasks:
-                task_subreddit = task.subreddit.lower()
-                task_channel = task.channel
-                if task_subreddit == subreddit_name.lower() and task_channel == channel.id:
-                    return await ctx.send(f':x: Already exists feed of `r/{subreddit_name}` in {channel.mention}')
+                if task.subreddit.lower() == subreddit_name.lower() and task.channel == channel.id:
+                    return await ctx.send(f':x: Already exists feed of `r/{task.subreddit}` in {channel.mention}')
 
         reply = await ctx.send(':hourglass: Processing...')
 
         try:
-            await self.feeder.feed_start(subreddit_name, channel.id)
+            result = await self.feeder.feed_start(subreddit_name, channel.id)
         except utils.exceptions.CannotSendMessages:
             return await reply.edit(content=':x: Bot don\'t have permission to send message in channel {}'.format(channel.mention))
         except utils.exceptions.SubredditNotFound:
@@ -69,8 +88,14 @@ class CogCommands(commands.Cog):
             return await reply.edit(content=':x: Subreddit `{}` is private'.format(subreddit_name))
         except utils.exceptions.SubredditIsNSFW:
             return await reply.edit(content=':x: Subreddit `{0}` is NSFW which channel {1} is not NSFW marked.'.format(subreddit_name, channel.mention))
+        except utils.exceptions.FeedExists:
+            return await reply.edit(content=':x: Already exists feed of `r/{0}` in {1}'.format(subreddit_name, channel.mention))
         else:
-            await reply.edit(content=f'Successful subscribed feed `r/{subreddit_name}` to {channel.mention}')
+            await self.db.execute(
+                'INSERT INTO feeds (guild_id, channel_id, subreddit) VALUES (:guild_id, :channel_id, :subreddit)',
+                {'guild_id': channel.guild.id, 'channel_id': channel.id, 'subreddit': result}
+            )
+            await reply.edit(content=f'Successful subscribed feed `r/{result}` to {channel.mention}')
 
     @commands.command(name='unsubscribe', description='Unsubscribes subreddit feed from selected server channel', aliases=['unsub', 'unfollow', 'remove'])
     async def cmd_unsubscribe(self, ctx: commands.Context, subreddit_name: str = '', channel: disnake.TextChannel = None):
@@ -83,7 +108,11 @@ class CogCommands(commands.Cog):
 
         result = self.feeder.feed_stop(subreddit_name, ctx.guild.id, channel.id)
         if result:
-            await ctx.send(f'Successful unsubscribed feed `r/{subreddit_name}` from {channel.mention}')
+            await self.db.execute(
+                'DELETE FROM feeds WHERE channel_id = :channel_id AND subreddit = :subreddit',
+                {'channel_id': channel.id, 'subreddit': result}
+            )
+            await ctx.send(f'Successful unsubscribed feed `r/{result}` from {channel.mention}')
         else:
             await ctx.send(f':x: There\'s are no feed from `{subreddit_name}` in {channel.mention} or incorrect subreddit/channel.')
 
@@ -94,8 +123,6 @@ class CogCommands(commands.Cog):
         except KeyError:
             return await ctx.send(':x: There\'s are no feeds in this server.')
         else:
-            print(guild_tasks)
-
             if len(guild_tasks) < 1:
                 return await ctx.send(':x: There\'s are no feeds in this server.')
 

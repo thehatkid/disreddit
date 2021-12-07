@@ -1,5 +1,6 @@
 import logging
 import yaml
+from databases import Database
 import disnake
 from disnake.ext import commands
 
@@ -28,6 +29,25 @@ bot = commands.Bot(
     help_command=None,
     intents=intents
 )
+
+# Connect SQLite Database
+bot.db = Database('sqlite:///{0}'.format(cfg['bot']['sqlite-path']))
+
+# After bot ready actions
+async def after_bot_ready():
+    await bot.wait_until_ready()
+    # Connect Database
+    await bot.db.connect()
+    # Creating table if not exists
+    await bot.db.execute('''
+    CREATE TABLE IF NOT EXISTS "feeds" (
+        "guild_id" INTEGER NOT NULL,
+        "channel_id" INTEGER NOT NULL,
+        "subreddit" TEXT NOT NULL
+    )
+    ''')
+
+bot.loop.create_task(after_bot_ready())
 
 # Loading Cogs
 bot.load_extension('cogs.events')

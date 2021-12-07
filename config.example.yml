@@ -1,6 +1,7 @@
 bot:
   token: "" # Discord bot authorization token
   prefix: "dr!" # Discord bot prefix
+  sqlite-path: "database.sqlite3" # SQLite3 database path
 
 reddit:
   # User Agent (https://github.com/reddit-archive/reddit/wiki/API#rules)
