@@ -14,6 +14,15 @@ log = logging.getLogger(__name__)
 cfg = yaml.safe_load(open('config.yml', 'r'))
 
 
+def _handle_task_result(task: asyncio.Task) -> None:
+    try:
+        task.result()
+    except asyncio.CancelledError:
+        pass  # Task cancellation should not be logged as an error.
+    except Exception:  # pylint: disable=broad-except
+        logging.exception('Exception raised by task = %r', task)
+
+
 class RedditFeed():
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -80,6 +89,7 @@ class RedditFeed():
         )
         task.subreddit = subreddit.display_name
         task.channel = channel.id
+        task.add_done_callback(_handle_task_result)
 
         # Appending task to guild task list in dict
         self.feeders[channel.guild.id].append(task)
@@ -119,64 +129,59 @@ class RedditFeed():
 
     async def subreddit_feeder(self, subreddit: models.Subreddit, channel: disnake.TextChannel):
         while True:
-            async for sm in subreddit.stream.submissions(skip_existing=True):
-                content = f'*Submission on `r/{sm.subreddit}` by `u/{sm.author}`*'
+            try:
+                async for sm in subreddit.stream.submissions(skip_existing=True):
+                    content = f'*Submission on `r/{sm.subreddit}` by `u/{sm.author}`*'
 
-                if sm.spoiler:
-                    content += ' **[Spoiler]**'
-
-                if sm.over_18:
-                    if channel.is_nsfw():
-                        content += ' **[NSFW]**'
-                    else:
-                        # Ignoring submission which channel is not NSFW marked
-                        continue
-
-                content += f'\n**{sm.title}**'
-
-                view = disnake.ui.View()
-                view.add_item(disnake.ui.Button(label='View Submission', url=f'https://reddit.com{sm.permalink}'))
-
-                if sm.selftext:
-                    selftext = sm.selftext.replace('>!', '||').replace('!<', '||').replace('&#x200B;', '').replace('<', '\\<').replace('>', '\\>')
-                    selftext = shorten(text=selftext, width=500, placeholder='[...]')
                     if sm.spoiler:
-                        selftext = selftext.replace('||', '')
-                        content += f'\n\n||{selftext}||'
-                    else:
-                        content += f'\n\n{selftext}'
+                        content += ' **[Spoiler]**'
 
-                if sm.url.endswith(('.jpg', '.png', '.gif')):
-                    embed = disnake.Embed(colour=0xff5700, type='image')
-                    embed.set_image(url=sm.url)
-                    try:
-                        await channel.send(content=content, view=view, embeds=[embed])
-                    except Exception as e:
-                        log.error(f'Message was not sent: {e}')
-                elif hasattr(sm, 'secure_media') and sm.secure_media:
-                    if hasattr(sm.secure_media, 'reddit_video'):
-                        content += '\n*[Video Attachment]*'
+                    if sm.over_18:
+                        if channel.is_nsfw():
+                            content += ' **[NSFW]**'
+                        else:
+                            # Ignoring submission which channel is not NSFW marked
+                            continue
+
+                    content += f'\n**{sm.title}**'
+
+                    view = disnake.ui.View()
+                    view.add_item(disnake.ui.Button(label='View Submission', url=f'https://reddit.com{sm.permalink}'))
+
+                    if sm.selftext:
+                        selftext = sm.selftext.replace('>!', '||').replace('!<', '||').replace('&#x200B;', '').replace('<', '\\<').replace('>', '\\>')
+                        selftext = shorten(text=selftext, width=500, placeholder='[...]')
+                        if sm.spoiler:
+                            selftext = selftext.replace('||', '')
+                            content += f'\n\n||{selftext}||'
+                        else:
+                            content += f'\n\n{selftext}'
+
+                    if sm.url.endswith(('.jpg', '.png', '.gif')):
+                        embed = disnake.Embed(colour=0xff5700, type='image')
+                        embed.set_image(url=sm.url)
                         try:
-                            await channel.send(content=content, view=view)
+                            await channel.send(content=content, view=view, embeds=[embed])
                         except Exception as e:
                             log.error(f'Message was not sent: {e}')
-                elif hasattr(sm, 'media_metadata'):
-                    embeds = []
-                    for media in sm.media_metadata:
-                        if sm.media_metadata[media]['e'] == 'Image':
-                            embed = disnake.Embed(colour=0xff5700, type='image')
-                            embed.set_image(url=sm.media_metadata[media]['s']['u'])
-                            embeds.append(embed)
-                        elif sm.media_metadata[media]['e'] == 'AnimatedImage':
-                            embed = disnake.Embed(colour=0xff5700, type='image')
-                            embed.set_image(url=sm.media_metadata[media]['s']['gif'])
-                            embeds.append(embed)
-                    try:
+                    elif hasattr(sm, 'secure_media') and sm.secure_media:
+                        if hasattr(sm.secure_media, 'reddit_video'):
+                            content += '\n*[Video Attachment]*'
+                            await channel.send(content=content, view=view)
+                    elif hasattr(sm, 'media_metadata'):
+                        embeds = []
+                        for media in sm.media_metadata:
+                            if sm.media_metadata[media]['e'] == 'Image':
+                                embed = disnake.Embed(colour=0xff5700, type='image')
+                                embed.set_image(url=sm.media_metadata[media]['s']['u'])
+                                embeds.append(embed)
+                            elif sm.media_metadata[media]['e'] == 'AnimatedImage':
+                                embed = disnake.Embed(colour=0xff5700, type='image')
+                                embed.set_image(url=sm.media_metadata[media]['s']['gif'])
+                                embeds.append(embed)
                         await channel.send(content=content, embeds=embeds, view=view)
-                    except Exception as e:
-                        log.error(f'Message was not sent: {e}')
-                else:
-                    try:
+                    else:
                         await channel.send(content=content, view=view)
-                    except Exception as e:
-                        log.error(f'Message was not sent: {e}')
+            except Exception as e:
+                log.error(f'Raised exception: {e}')
+                continue
