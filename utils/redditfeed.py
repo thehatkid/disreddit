@@ -167,7 +167,9 @@ class RedditFeed():
                     elif hasattr(sm, 'secure_media') and sm.secure_media:
                         if hasattr(sm.secure_media, 'reddit_video'):
                             content += '\n*[Video Attachment]*'
-                            await channel.send(content=content, view=view)
+                        elif hasattr(sm.secure_media, 'oembed'):
+                            content += '\n*[Embed Attachment]*'
+                        await channel.send(content=content, view=view)
                     elif hasattr(sm, 'media_metadata'):
                         embeds = []
                         for media in sm.media_metadata:
