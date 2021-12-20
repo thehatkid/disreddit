@@ -173,6 +173,8 @@ class RedditFeed():
                     elif hasattr(sm, 'media_metadata'):
                         embeds = []
                         for media in sm.media_metadata:
+                            if len(embeds) >= 3:
+                                break
                             if sm.media_metadata[media]['e'] == 'Image':
                                 embed = disnake.Embed(colour=0xff5700, type='image')
                                 embed.set_image(url=sm.media_metadata[media]['s']['u'])
