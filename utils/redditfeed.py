@@ -150,7 +150,7 @@ class RedditFeed():
 
                     if sm.selftext:
                         selftext = sm.selftext.replace('>!', '||').replace('!<', '||').replace('&#x200B;', '').replace('<', '\\<').replace('>', '\\>')
-                        selftext = shorten(text=selftext, width=500, placeholder='[...]')
+                        selftext = shorten(text=selftext, width=500, placeholder=' *[...]*')
                         if sm.spoiler:
                             selftext = selftext.replace('||', '')
                             content += f'\n\n||{selftext}||'
@@ -165,9 +165,9 @@ class RedditFeed():
                         except Exception as e:
                             log.error(f'Message was not sent: {e}')
                     elif hasattr(sm, 'secure_media') and sm.secure_media:
-                        if hasattr(sm.secure_media, 'reddit_video'):
+                        if 'reddit_video' in sm.secure_media:
                             content += '\n*[Video Attachment]*'
-                        elif hasattr(sm.secure_media, 'oembed'):
+                        elif 'oembed' in sm.secure_media:
                             content += '\n*[Embed Attachment]*'
                         await channel.send(content=content, view=view)
                     elif hasattr(sm, 'media_metadata'):
