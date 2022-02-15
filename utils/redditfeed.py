@@ -1,7 +1,6 @@
 import logging
 import yaml
 from utils import exceptions
-from textwrap import shorten
 import asyncio
 import asyncprawcore
 import asyncpraw
@@ -26,6 +25,7 @@ def _handle_task_result(task: asyncio.Task) -> None:
 class RedditFeed():
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.text_limit = 500
         self.feeders: dict[int, list[asyncio.Task]] = {}
         self.reddit = asyncpraw.Reddit(
             client_id=cfg['reddit']['client-id'],
@@ -40,7 +40,7 @@ class RedditFeed():
         Starts subreddit feed to server's channel.
 
         Parameters
-        -----------
+        ----------
         subreddit_name: :class:`str`
             The Subreddit name to feeding.
         channel_id: :class:`int`
@@ -101,7 +101,7 @@ class RedditFeed():
         Stops subreddit feeding for server's channel.
 
         Parameters
-        -----------
+        ----------
         subreddit_name: :class:`str`
             The Subreddit name to stop feeding.
         guild_id: :class:`int`
@@ -149,8 +149,14 @@ class RedditFeed():
                     view.add_item(disnake.ui.Button(label='View Submission', url=f'https://reddit.com{sm.permalink}'))
 
                     if sm.selftext:
-                        selftext = sm.selftext.replace('>!', '||').replace('!<', '||').replace('&#x200B;', '').replace('<', '\\<').replace('>', '\\>')
-                        selftext = shorten(text=selftext, width=500, placeholder=' *[...]*')
+                        selftext = sm.selftext.replace('&#x200B;', '')
+                        selftext = selftext.replace('>!', '||').replace('!<', '||')
+                        selftext = selftext.replace('<', '\\<').replace('>', '\\>')
+
+                        # message text limit
+                        if len(selftext) >= self.text_limit:
+                            selftext = f'{selftext[:self.text_limit]} *[...]*'
+
                         if sm.spoiler:
                             selftext = selftext.replace('||', '')
                             content += f'\n\n||{selftext}||'
