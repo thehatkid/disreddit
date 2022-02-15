@@ -179,16 +179,26 @@ class RedditFeed():
                     elif hasattr(sm, 'media_metadata'):
                         embeds = []
                         for media in sm.media_metadata:
+                            # if had reached embeds limit
                             if len(embeds) >= 3:
                                 break
+
+                            # if media is not valid, skipping it
+                            if sm.media_metadata[media]['status'] != 'valid':
+                                continue
+
+                            # if media is image...
                             if sm.media_metadata[media]['e'] == 'Image':
                                 embed = disnake.Embed(colour=0xff5700, type='image')
                                 embed.set_image(url=sm.media_metadata[media]['s']['u'])
                                 embeds.append(embed)
+
+                            # if media is gif/video...
                             elif sm.media_metadata[media]['e'] == 'AnimatedImage':
                                 embed = disnake.Embed(colour=0xff5700, type='image')
                                 embed.set_image(url=sm.media_metadata[media]['s']['gif'])
                                 embeds.append(embed)
+
                         await channel.send(content=content, embeds=embeds, view=view)
                     else:
                         await channel.send(content=content, view=view)
