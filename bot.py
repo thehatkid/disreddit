@@ -1,5 +1,6 @@
 import logging
 import yaml
+from datetime import datetime
 from databases import Database
 import disnake
 from disnake.ext import commands
@@ -27,9 +28,12 @@ intents.guild_messages = True
 bot = commands.Bot(
     command_prefix=cfg['bot']['prefix'],
     help_command=None,
+    allowed_mentions=disnake.AllowedMentions.none(),
     intents=intents
 )
 
+# Bot start time for uptime stats
+bot.start_time = datetime.now()
 # Connect SQLite Database
 bot.db = Database('sqlite:///{0}'.format(cfg['bot']['sqlite-path']))
 

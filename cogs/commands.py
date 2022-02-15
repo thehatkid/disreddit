@@ -1,5 +1,8 @@
 import logging
+import os
+import psutil
 import utils
+from datetime import datetime
 import asyncio
 from databases import Database
 import disnake
@@ -36,6 +39,12 @@ class CogCommands(commands.Cog):
     def cog_unload(self):
         self.feeder.feed_stop_all()
 
+    @commands.command(name='reload', description='Reloads Bot\'s Cogs (bot admin only)', hidden=True)
+    async def cmd_reload(self, ctx: commands.Context):
+        self.bot.reload_extension('cogs.events')
+        self.bot.reload_extension('cogs.commands')
+        await ctx.reply(':arrows_counterclockwise: Reloaded.')
+
     @commands.command(name='ping', description='Shows embed with bot latency')
     async def cmd_ping(self, ctx: commands.Context):
         embed = disnake.Embed(
@@ -43,7 +52,7 @@ class CogCommands(commands.Cog):
             colour=disnake.Colour.blurple()
         )
         embed.add_field(
-            name=':signal_strength: Websocket Latency',
+            name=':signal_strength: Bot Latency',
             value='{}ms'.format(round(self.bot.latency * 1000)),
             inline=False
         )
@@ -54,6 +63,83 @@ class CogCommands(commands.Cog):
             icon_url=ctx.author.avatar
         )
         await ctx.send(embed=embed)
+
+    @commands.command(name='statistics', description='Shows an embed with bot statistics', aliases=['stats', 'stat'])
+    async def cmd_statistics(self, ctx: commands.Context):
+        uptime = datetime.now().timestamp() - self.bot.start_time.timestamp()
+        time_d = int(uptime) / (3600 * 24)
+        time_h = int(uptime) / 3600 - int(time_d) * 24
+        time_min = int(uptime) / 60 - int(time_h) * 60 - int(time_d) * 24 * 60
+        time_sec = int(uptime) - int(time_min) * 60 - int(time_h) * 3600 - int(time_d) * 24 * 60 * 60
+        uptime_str = '%01d days, %02d hours, %02d minutes and %02d seconds' % (time_d, time_h, time_min, time_sec)
+
+        process = psutil.Process(os.getpid())
+        cpu_percent = psutil.cpu_percent()
+        ram = psutil.virtual_memory()
+        ram_used = utils.human_readable_size(ram.used)
+        ram_total = utils.human_readable_size(ram.total)
+        ram_available = utils.human_readable_size(ram.available)
+        total_guilds = len(self.bot.guilds)
+        total_users = 0
+        for guild in self.bot.guilds:
+            total_users += guild.member_count
+        total_feed_servers = len(self.feeder.feeders)
+        total_feeders = 0
+        for guild_id in self.feeder.feeders:
+            total_feeders += len(self.feeder.feeders[guild_id])
+
+        embed = disnake.Embed(
+            title=':information_source: Bot statistics',
+            color=disnake.Color.blurple()
+        )
+
+        embed.add_field(
+            name=':clock1: Bot Uptime',
+            value=f'{uptime_str} (<t:{int(self.bot.start_time.timestamp())}:R>)',
+            inline=False
+        )
+        embed.add_field(
+            name=':page_facing_up: Process PID',
+            value=process.pid,
+            inline=True
+        )
+        embed.add_field(
+            name=':control_knobs: System CPU Usage',
+            value=f'{cpu_percent}%',
+            inline=True
+        )
+        embed.add_field(
+            name=':file_cabinet: Bot RAM Usage',
+            value=utils.human_readable_size(process.memory_info().rss),
+            inline=True
+        )
+        embed.add_field(
+            name=':file_cabinet: System Total RAM',
+            value=f'Using: {ram_used} ({ram.percent}%) / {ram_total}\nAvailable: {ram_available} ({ram.available * 100 / ram.total:.1f}%)',
+            inline=False
+        )
+        embed.add_field(
+            name=':mailbox: Reddit Feeders',
+            value=f'Feeding {total_feeders} subreddits on {total_feed_servers} servers',
+            inline=False
+        )
+        embed.add_field(
+            name=':signal_strength: Bot latency',
+            value=f'{round(self.bot.latency * 1000)}ms',
+            inline=True
+        )
+        embed.add_field(
+            name=':homes: Servers joined',
+            value=f'{total_guilds} servers',
+            inline=True
+        )
+        embed.add_field(
+            name=':busts_in_silhouette: Total users in servers',
+            value=f'{total_users} users',
+            inline=True
+        )
+
+        await ctx.reply(embed=embed, mention_author=False)
 
     @commands.command(name='subscribe', description='Subscribes subreddit feed to selected server channel', aliases=['sub', 'follow', 'add'])
     async def cmd_subscribe(self, ctx: commands.Context, subreddit_name: str = '', channel: disnake.TextChannel = None):
