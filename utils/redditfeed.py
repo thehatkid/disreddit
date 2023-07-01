@@ -195,27 +195,31 @@ class RedditFeed():
                         elif 'oembed' in sm.secure_media:
                             content += '\n*[Embed Attachment]*'
                         await channel.send(content=content, view=view)
-                    elif hasattr(sm, 'media_metadata'):
+                    elif hasattr(sm, 'gallery_data'):
                         embeds = []
-                        for media in sm.media_metadata:
-                            # if had reached embeds limit
+                        for data in sm.gallery_data['items']:
+                            # If had reached embeds limit
                             if len(embeds) >= 3:
                                 break
 
-                            # if media is not valid, skipping it
-                            if sm.media_metadata[media]['status'] != 'valid':
+                            # If media is not valid, skipping it
+                            if sm.media_metadata[data['media_id']]['status'] != 'valid':
                                 continue
 
-                            # if media is image...
-                            if sm.media_metadata[media]['e'] == 'Image':
+                            # If media is image...
+                            if sm.media_metadata[data['media_id']]['e'] == 'Image':
                                 embed = disnake.Embed(colour=0xff5700, type='image')
-                                embed.set_image(url=sm.media_metadata[media]['s']['u'])
+                                embed.set_image(url=sm.media_metadata[data['media_id']]['s']['u'])
+                                if 'caption' in data:
+                                    embed.set_footer(text=data['caption'])
                                 embeds.append(embed)
 
-                            # if media is gif/video...
-                            elif sm.media_metadata[media]['e'] == 'AnimatedImage':
+                            # If media is gif/video...
+                            elif sm.media_metadata[data['media_id']]['e'] == 'AnimatedImage':
                                 embed = disnake.Embed(colour=0xff5700, type='image')
-                                embed.set_image(url=sm.media_metadata[media]['s']['gif'])
+                                embed.set_image(url=sm.media_metadata[data['media_id']]['s']['gif'])
+                                if 'caption' in data:
+                                    embed.set_footer(text=data['caption'])
                                 embeds.append(embed)
 
                         await channel.send(content=content, embeds=embeds, view=view)
