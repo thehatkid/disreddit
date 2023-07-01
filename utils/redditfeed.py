@@ -1,12 +1,15 @@
 import logging
 import yaml
-from utils import exceptions
+import re
 import asyncio
 import asyncprawcore
 import asyncpraw
 from asyncpraw import models
 import disnake
 from disnake.ext import commands
+from disnake.utils import escape_markdown
+
+from utils import exceptions
 
 
 log = logging.getLogger(__name__)
@@ -25,7 +28,7 @@ def _handle_task_result(task: asyncio.Task) -> None:
 class RedditFeed():
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.text_limit = 500
+        self.text_limit = 1000
         self.feeders: dict[int, list[asyncio.Task]] = {}
         self.reddit = asyncpraw.Reddit(
             client_id=cfg['reddit']['client-id'],
@@ -131,7 +134,17 @@ class RedditFeed():
         while True:
             try:
                 async for sm in subreddit.stream.submissions(skip_existing=True):
-                    content = f'*Submission on `r/{sm.subreddit}` by `u/{sm.author}`*'
+                    view = disnake.ui.View()
+
+                    if hasattr(sm, 'poll_data'):
+                        content = f'*Poll on `r/{sm.subreddit.display_name}` by `u/{sm.author.name}`*'
+                        view.add_item(disnake.ui.Button(label='View Poll', url=f'https://reddit.com{sm.permalink}'))
+                    else:
+                        content = f'*Submission on `r/{sm.subreddit.display_name}` by `u/{sm.author.name}`*'
+                        view.add_item(disnake.ui.Button(label='View Submission', url=f'https://reddit.com{sm.permalink}'))
+
+                    if sm.link_flair_text:
+                        content += f' **[{escape_markdown(sm.link_flair_text)}]**'
 
                     if sm.spoiler:
                         content += ' **[Spoiler]**'
@@ -143,17 +156,21 @@ class RedditFeed():
                             # Ignoring submission which channel is not NSFW marked
                             continue
 
-                    content += f'\n**{sm.title}**'
+                    content += f'\n**{escape_markdown(sm.title)}**'
+                    selftext = sm.selftext
 
-                    view = disnake.ui.View()
-                    view.add_item(disnake.ui.Button(label='View Submission', url=f'https://reddit.com{sm.permalink}'))
+                    if hasattr(sm, 'poll_data'):
+                        selftext = re.sub(r'\n\n\[View Poll\]\(https://www\.reddit\.com/poll\/\w+\)', '', selftext)
 
-                    if sm.selftext:
-                        selftext = sm.selftext.replace('&#x200B;', '')
+                    if selftext != '':
+                        # Remove HTML-like zero-witdh space
+                        selftext = selftext.replace('&#x200B;', '')
+                        # Replace Reddit spoiler format into Discord format
                         selftext = selftext.replace('>!', '||').replace('!<', '||')
+                        # Escape "less/greater than" characters to exclude Discord mention chance
                         selftext = selftext.replace('<', '\\<').replace('>', '\\>')
 
-                        # message text limit
+                        # Text limit
                         if len(selftext) >= self.text_limit:
                             selftext = f'{selftext[:self.text_limit]} *[...]*'
 
@@ -170,7 +187,9 @@ class RedditFeed():
                             await channel.send(content=content, view=view, embeds=[embed])
                         except Exception as e:
                             log.error(f'Message was not sent: {e}')
-                    elif hasattr(sm, 'secure_media') and sm.secure_media:
+                        return
+
+                    if hasattr(sm, 'secure_media') and sm.secure_media:
                         if 'reddit_video' in sm.secure_media:
                             content += '\n*[Video Attachment]*'
                         elif 'oembed' in sm.secure_media:
