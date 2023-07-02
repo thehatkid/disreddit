@@ -1,5 +1,6 @@
 colorama>=0.4.6
 psutil>=5.9.5
+pygit2>=1.12.2
 PyYAML>=6.0
 databases[sqlite]>=0.7.0
 disnake>=2.9.0

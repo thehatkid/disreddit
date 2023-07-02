@@ -14,6 +14,9 @@ bot:
     # URL of your Discord support server if needed:
     support: ""
 
+    # URL of your Github repository:
+    repos: "https://github.com/thehatkid/disreddit"
+
 reddit:
   # User Agent (https://github.com/reddit-archive/reddit/wiki/API#rules)
   # <platform>:<app ID>:<version string> (by /u/<reddit_username>)

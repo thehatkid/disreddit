@@ -1,5 +1,9 @@
 import logging
 import yaml
+import time
+import datetime
+import itertools
+import pygit2
 from os import getpid
 import psutil
 import disnake
@@ -19,6 +23,7 @@ class CogGeneral(commands.Cog):
 
         self.invite_url = config['bot']['links']['invite']
         self.support_url = config['bot']['links']['support']
+        self.repos_url = config['bot']['links']['repos']
 
     def cog_load(self):
         self.log.info('Cog load')
@@ -26,8 +31,25 @@ class CogGeneral(commands.Cog):
     def cog_unload(self):
         self.log.info('Cog unload')
 
+    def format_commit(self, commit: pygit2.Commit) -> str:
+        short, _, _ = commit.message.partition('\n')
+        short_sha2 = commit.hex[0:6]
+        commit_tz = datetime.timezone(datetime.timedelta(minutes=commit.commit_time_offset))
+        commit_time = datetime.datetime.fromtimestamp(commit.commit_time).astimezone(commit_tz)
+
+        # [`hash`](url): summary (timestamp)
+        timestamp = f'<t:{int(commit_time.astimezone(datetime.timezone.utc).timestamp())}:R>'
+        return f'[`{short_sha2}`]({self.repos_url}/commit/{commit.hex}): {short} ({timestamp})'
+
+    def get_last_commits(self, count: int = 3) -> str:
+        repo = pygit2.Repository('.git')
+        commits = list(itertools.islice(repo.walk(repo.head.target, pygit2.GIT_SORT_TOPOLOGICAL), count))
+        return '\n'.join(self.format_commit(c) for c in commits)
+
     @commands.slash_command(name='about', description='Tells you information about the bot')
     async def scmd_about(self, ia: disnake.AppCmdInter):
+        revision = self.get_last_commits()
+
         embed = disnake.Embed(
             title=f'Hello, {ia.author}!',
             colour=disnake.Colour.blurple()
@@ -35,8 +57,10 @@ class CogGeneral(commands.Cog):
         embed.description = f'''
         Hello, thank you for using me! I am {self.bot.user.name}.
 
-        This bot aims to finding new posts from one or more Subreddit feeds to one or more Discord channels,
-        such for text channels, news channels, threads, or even voice and stage channels (Text-in-Voice).
+        This bot aims to finding new posts from one or more Subreddit feeds to one or more Discord channels, such for text channels, news channels, threads, or even voice and stage channels (Text-in-Voice).
+
+        **Latest Changes:**
+        {revision}
         '''
         embed.set_author(name=self.bot.user, icon_url=self.bot.user.avatar)
 

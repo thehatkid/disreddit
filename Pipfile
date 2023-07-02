@@ -10,6 +10,7 @@ pyyaml = ">=6.0"
 databases = {version = ">=0.7.0", extras = ["sqlite"]}
 disnake = ">=2.9.0"
 asyncpraw = ">=7.7.0"
+pygit2 = ">=1.12.2"
 
 [dev-packages]
 
