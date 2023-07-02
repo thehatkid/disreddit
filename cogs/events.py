@@ -1,56 +1,33 @@
 import logging
-import sys
-import traceback
 import disnake
 from disnake.ext import commands
 
-
-log = logging.getLogger(__name__)
+from bot import DisredditBot
 
 
 class CogEvents(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: DisredditBot):
         self.bot = bot
+        self.log = logging.getLogger(__name__)
+
+    def cog_load(self):
+        self.log.info('Cog load')
+
+    def cog_unload(self):
+        self.log.info('Cog unload')
 
     @commands.Cog.listener()
     async def on_ready(self):
-        log.info('Bot is Ready as {}'.format(self.bot.user))
+        self.log.info('Bot is ready as {0} (ID: {0.id})'.format(self.bot.user))
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: disnake.Guild):
-        log.info('Bot has been invited to: [Name: {0}, ID: {1}]'.format(guild.name, guild.id))
+        self.log.info('Bot has been invited to guild: {0.name} (ID: {0.id})'.format(guild))
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: disnake.Guild):
-        log.info('Bot has been kicked from: [Name: {0}, ID: {1}]'.format(guild.name, guild.id))
-
-    @commands.Cog.listener()
-    async def on_command_error(self, ctx: commands.Context, error):
-        if isinstance(error, commands.errors.MissingRequiredArgument):
-            # Missing command argument error
-            await ctx.send(f':x: Required argument in this command: `{error.param}`')
-        elif isinstance(error, commands.errors.CheckFailure):
-            # Command access error
-            await ctx.send(':x: You don\'t have access to this command.')
-        elif isinstance(error, commands.errors.BadArgument):
-            # Invalid command argument error
-            await ctx.send(f':x: Bad argument in this command: `{error}`')
-        elif isinstance(error, commands.CommandNotFound):
-            # Command not found error
-            pass
-        elif isinstance(error, commands.errors.DisabledCommand):
-            # Disabled command error
-            await ctx.send(':x: This command was been disabled.')
-        else:
-            # Other error (traceback in console)
-            log.error('Raised Exception in Command "{0}"'.format(ctx.command))
-            traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        self.log.info('Bot has been kicked from guild: {0.name} (ID: {0.id})'.format(guild))
 
 
-def setup(bot: commands.Bot) -> None:
+def setup(bot: DisredditBot) -> None:
     bot.add_cog(CogEvents(bot))
-    log.info('Loaded cog')
-
-
-def teardown(bot: commands.Bot) -> None:
-    log.info('Unloaded cog')

@@ -1,17 +1,28 @@
 bot:
-  token: "" # Discord bot authorization token
-  prefix: "dr!" # Discord bot prefix
-  sqlite-path: "database.sqlite3" # SQLite3 database path
+  # Discord bot authorization token:
+  token: ""
+
+  # SQLite3 database path:
+  sqlite-path: "database.sqlite3"
+
+  links:
+    # You can leave as empty strings to disable related commands/infos.
+
+    # URL of OAuth2 bot invite if needed:
+    invite: ""
+
+    # URL of your Discord support server if needed:
+    support: ""
 
 reddit:
   # User Agent (https://github.com/reddit-archive/reddit/wiki/API#rules)
-  # <platform>:<app ID>:<version string> (by /u/<reddit username>)
-  user-agent: "unknown:Disreddit:1.0 (by /u/<your_username>)"
+  # <platform>:<app ID>:<version string> (by /u/<reddit_username>)
+  user-agent: "asyncpraw:Disreddit:1.0 (by /u/<your_username>)"
 
   # Reddit application credentials (https://www.reddit.com/prefs/apps)
   client-id: "" # Client ID
   client-secret: "" # Client Secret
 
-  # Reddit user credentials (optional)
-  username: "" # Username to login
+  # Reddit user credentials (optional, OAuth2 method)
+  username: "" # Username of account
   password: "" # Password of account

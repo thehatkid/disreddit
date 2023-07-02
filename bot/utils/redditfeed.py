@@ -9,33 +9,32 @@ import disnake
 from disnake.ext import commands
 from disnake.utils import escape_markdown
 
-from utils import exceptions
-
-
-log = logging.getLogger(__name__)
-cfg = yaml.safe_load(open('config.yml', 'r'))
+from bot.utils import exceptions
 
 
 def _handle_task_result(task: asyncio.Task) -> None:
     try:
         task.result()
     except asyncio.CancelledError:
-        pass  # Task cancellation should not be logged as an error.
-    except Exception:  # pylint: disable=broad-except
+        pass
+    except Exception:
         logging.exception('Exception raised by task = %r', task)
 
 
-class RedditFeed():
+class RedditFeed:
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+        self.log = logging.getLogger(__name__)
+        with open('config.yml', 'r') as fp:
+            self.config = yaml.safe_load(fp)
         self.text_limit = 1000
         self.feeders: dict[int, list[asyncio.Task]] = {}
         self.reddit = asyncpraw.Reddit(
-            client_id=cfg['reddit']['client-id'],
-            client_secret=cfg['reddit']['client-secret'],
-            password=cfg['reddit']['password'],
-            user_agent=cfg['reddit']['user-agent'],
-            username=cfg['reddit']['username']
+            client_id=self.config['reddit']['client-id'],
+            client_secret=self.config['reddit']['client-secret'],
+            password=self.config['reddit']['password'],
+            user_agent=self.config['reddit']['user-agent'],
+            username=self.config['reddit']['username']
         )
 
     async def feed_start(self, subreddit_name: str, channel_id: int):
@@ -186,7 +185,7 @@ class RedditFeed():
                         try:
                             await channel.send(content=content, view=view, embeds=[embed])
                         except Exception as e:
-                            log.error(f'Message was not sent: {e}')
+                            self.log.error(f'Message was not sent: {e}')
                         return
 
                     if hasattr(sm, 'secure_media') and sm.secure_media:
@@ -226,5 +225,5 @@ class RedditFeed():
                     else:
                         await channel.send(content=content, view=view)
             except Exception as e:
-                log.error(f'Raised exception: {e}')
+                self.log.error(f'Raised exception: {e}')
                 continue

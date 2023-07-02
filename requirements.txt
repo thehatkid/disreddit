@@ -1,5 +1,6 @@
+colorama>=0.4.6
+psutil>=5.9.5
 PyYAML>=6.0
-disnake>=2.2.2
-psutil>=5.9.0
-databases[sqlite]>=0.5.3
-asyncpraw>=7.5.0
+databases[sqlite]>=0.7.0
+disnake>=2.9.0
+asyncpraw>=7.7.0
