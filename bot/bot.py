@@ -37,10 +37,10 @@ class DisredditBot(commands.Bot):
                 users=False,
                 roles=False
             ),
-            status=disnake.Status.online,
+            status=disnake.Status.idle,
             activity=disnake.Activity(
-                name='Reddit feeds',
-                type=disnake.ActivityType.listening
+                name='Starting...',
+                type=disnake.ActivityType.playing
             ),
             command_sync_flags=commands.flags.CommandSyncFlags(
                 allow_command_deletion=True,

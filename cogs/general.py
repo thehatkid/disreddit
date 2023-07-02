@@ -1,13 +1,15 @@
 import logging
 import yaml
-import time
+from typing import List, Tuple
 import datetime
 import itertools
 import pygit2
 from os import getpid
 import psutil
 import disnake
+from disnake import ActivityType
 from disnake.ext import commands
+from disnake.ext import tasks
 
 from bot import DisredditBot
 from bot.utils import sizeof_fmt, uptime_to_str
@@ -25,11 +27,26 @@ class CogGeneral(commands.Cog):
         self.support_url = config['bot']['links']['support']
         self.repos_url = config['bot']['links']['repos']
 
+        self.presences: List[Tuple[ActivityType, str]] = [
+            (ActivityType.competing, 'hat_kid\'s development'),
+            (ActivityType.watching, 'for Reddit feeds'),
+            (ActivityType.listening, '[TOTAL_FEEDERS] feeds'),
+            (ActivityType.playing, 'Reddit'),
+            (ActivityType.watching, 'for [GUILDS] servers'),
+            (ActivityType.watching, 'for [USERS] users'),
+            (ActivityType.competing, 'r/funny'),
+            (ActivityType.playing, 'OneShot'),
+            (ActivityType.watching, 'for [TOTAL_FEEDERS] feeds in [GUILD_FEEDERS] servers'),
+        ]
+        self.presence_iter: int = 0
+
     def cog_load(self):
         self.log.info('Cog load')
+        self.task_presence_cycle.start()
 
     def cog_unload(self):
         self.log.info('Cog unload')
+        self.task_presence_cycle.stop()
 
     def format_commit(self, commit: pygit2.Commit) -> str:
         short, _, _ = commit.message.partition('\n')
@@ -153,6 +170,31 @@ class CogGeneral(commands.Cog):
             inline=True
         )
         await ia.response.send_message(embed=embed)
+
+    @tasks.loop(minutes=1.0)
+    async def task_presence_cycle(self):
+        await self.bot.wait_until_ready()
+
+        game_type, game_name = self.presences[self.presence_iter]
+
+        total_users = 0
+        for guild in self.bot.guilds:
+            total_users += guild.member_count
+        total_feed_servers = len(self.bot.feeder.feeders)
+        total_feeders = 0
+        for guild_id in self.bot.feeder.feeders:
+            total_feeders += len(self.bot.feeder.feeders[guild_id])
+
+        game_name = game_name.replace('[GUILD_FEEDERS]', str(total_feed_servers))
+        game_name = game_name.replace('[TOTAL_FEEDERS]', str(total_feeders))
+        game_name = game_name.replace('[GUILDS]', str(len(self.bot.guilds)))
+        game_name = game_name.replace('[USERS]', str(total_users))
+
+        await self.bot.change_presence(activity=disnake.Activity(name=game_name, type=game_type))
+
+        self.presence_iter += 1
+        if self.presence_iter >= len(self.presences):
+            self.presence_iter = 0
 
 
 def setup(bot: DisredditBot) -> None:
