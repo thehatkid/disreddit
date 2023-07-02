@@ -1,4 +1,5 @@
 import logging
+from typing import List
 import asyncio
 import disnake
 from disnake import Option, OptionType, ChannelType
@@ -127,7 +128,8 @@ class CogFeed(commands.Cog):
                 name='subreddit',
                 description='The Subreddit name to unsubscribe the feed',
                 type=OptionType.string,
-                required=True
+                required=True,
+                autocomplete=True
             ),
             Option(
                 name='channel',
@@ -192,6 +194,16 @@ class CogFeed(commands.Cog):
                 )
 
             await ia.response.send_message(embed=embed)
+
+    @scmd_unsubscribe.autocomplete('subreddit')
+    async def ac_subreddits(self, ia: disnake.AppCmdInter, string: str) -> List[str]:
+        result = []
+        for feeder in self.feeder.feeders[ia.guild.id]:
+            if len(result) >= 25:
+                break
+            if string.lower() in feeder.subreddit.lower():
+                result.append(feeder.subreddit)
+        return result
 
 
 def setup(bot: DisredditBot) -> None:
