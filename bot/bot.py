@@ -15,8 +15,8 @@ class DisredditBot(commands.Bot):
         self.database = Database('sqlite:///{0}'.format(database_path))
         self.feeder = RedditFeed(self)
         self.config = {
-            "text_limit": 1000,
-            "feeders_limit": 5
+            'text_limit': 1000,
+            'feeders_limit': 5
         }
 
         self.log.info('Starting disnake {0} {1} with asyncpraw {2}...'.format(
@@ -55,7 +55,6 @@ class DisredditBot(commands.Bot):
         )
 
     async def database_connect(self) -> None:
-        await self.wait_until_ready()
         await self.database.connect()
         await self.database.execute('''
         CREATE TABLE IF NOT EXISTS "feeds" (

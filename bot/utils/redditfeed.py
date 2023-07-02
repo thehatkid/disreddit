@@ -11,6 +11,8 @@ from disnake.utils import escape_markdown
 
 from bot.utils import exceptions
 
+log = logging.getLogger(__name__)
+
 
 def _handle_task_result(task: asyncio.Task) -> None:
     try:
@@ -18,13 +20,12 @@ def _handle_task_result(task: asyncio.Task) -> None:
     except asyncio.CancelledError:
         pass
     except Exception:
-        logging.exception('Exception raised by task = %r', task)
+        log.exception('Exception raised by task = %r', task)
 
 
 class RedditFeed:
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.log = logging.getLogger(__name__)
         with open('config.yml', 'r') as fp:
             self.config = yaml.safe_load(fp)
         self.text_limit = 1000
@@ -185,7 +186,7 @@ class RedditFeed:
                         try:
                             await channel.send(content=content, view=view, embeds=[embed])
                         except Exception as e:
-                            self.log.error(f'Message was not sent: {e}')
+                            log.error(f'Message was not sent: {e}')
                         return
 
                     if hasattr(sm, 'secure_media') and sm.secure_media:
@@ -225,5 +226,5 @@ class RedditFeed:
                     else:
                         await channel.send(content=content, view=view)
             except Exception as e:
-                self.log.error(f'Raised exception: {e}')
+                log.error(f'Raised exception: {e}')
                 continue
