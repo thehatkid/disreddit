@@ -1,35 +1,27 @@
 import logging
 import yaml
+from typing import Dict, Set
 import re
 import asyncio
 import asyncprawcore
 import asyncpraw
 from asyncpraw import models
 import disnake
-from disnake.ext import commands
 from disnake.utils import escape_markdown
 
+from bot import DisredditBot
 from bot.utils import exceptions
 
 log = logging.getLogger(__name__)
 
 
-def _handle_task_result(task: asyncio.Task) -> None:
-    try:
-        task.result()
-    except asyncio.CancelledError:
-        pass
-    except Exception:
-        log.exception('Exception raised by task = %r', task)
-
-
 class RedditFeed:
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: DisredditBot):
         self.bot = bot
         with open('config.yml', 'r') as fp:
             self.config = yaml.safe_load(fp)
-        self.text_limit = 1000
-        self.feeders: dict[int, list[asyncio.Task]] = {}
+        self.text_limit = self.bot.config['text_limit']
+        self.feeders: Dict[int, Set[asyncio.Task]] = {}
         self.reddit = asyncpraw.Reddit(
             client_id=self.config['reddit']['client-id'],
             client_secret=self.config['reddit']['client-secret'],
@@ -56,9 +48,9 @@ class RedditFeed:
         if channel.permissions_for(bot_user).send_messages is False:
             raise exceptions.CannotSendMessages()
 
-        # If don't have guild task list in dict, putting empty list
+        # If don't have guild task list in dict, make new collection
         if not channel.guild.id in self.feeders:
-            self.feeders[channel.guild.id] = []
+            self.feeders[channel.guild.id] = set()
         else:
             # Else check for existing tasks
             for task in self.feeders[channel.guild.id]:
@@ -92,10 +84,10 @@ class RedditFeed:
         )
         task.subreddit = subreddit.display_name
         task.channel = channel.id
-        task.add_done_callback(_handle_task_result)
 
-        # Appending task to guild task list in dict
-        self.feeders[channel.guild.id].append(task)
+        # Adding the link to asyncio task to collection
+        self.feeders[channel.guild.id].add(task)
+        task.add_done_callback(self.feeders[channel.guild.id].discard)
 
         return subreddit.display_name
 
@@ -187,7 +179,7 @@ class RedditFeed:
                             await channel.send(content=content, view=view, embeds=[embed])
                         except Exception as e:
                             log.error(f'Message was not sent: {e}')
-                        return
+                        continue
 
                     if hasattr(sm, 'secure_media') and sm.secure_media:
                         if 'reddit_video' in sm.secure_media:
@@ -226,5 +218,5 @@ class RedditFeed:
                     else:
                         await channel.send(content=content, view=view)
             except Exception as e:
-                log.error(f'Raised exception: {e}')
+                log.exception(f'Raised exception in task loop (RedditFeed:{channel.guild.id}:{channel.id}:{subreddit.display_name})')
                 continue
