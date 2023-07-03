@@ -7,16 +7,16 @@ import asyncprawcore
 import asyncpraw
 from asyncpraw import models
 import disnake
+from disnake.ext import commands
 from disnake.utils import escape_markdown
 
-from bot import DisredditBot
 from bot.utils import exceptions
 
 log = logging.getLogger(__name__)
 
 
 class RedditFeed:
-    def __init__(self, bot: DisredditBot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
         with open('config.yml', 'r') as fp:
             self.config = yaml.safe_load(fp)

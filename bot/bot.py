@@ -13,11 +13,11 @@ class DisredditBot(commands.Bot):
         self.log = logging.getLogger('Disreddit')
         self.start_time = datetime.now()
         self.database = Database('sqlite:///{0}'.format(database_path))
-        self.feeder = RedditFeed(self)
         self.config = {
             'text_limit': 1000,
             'feeders_limit': 5
         }
+        self.feeder = RedditFeed(self)
 
         self.log.info('Starting disnake {0} {1} with asyncpraw {2}...'.format(
             disnake.__version__,
