@@ -33,7 +33,7 @@ class LogFormatter(logging.Formatter):
         super().__init__()
         self.FORMATS = {
             logging.DEBUG: f'{self.MAGENTA}{fmt}{self.RESET}',
-            logging.INFO: f'{self.LIGHT_WHITE}{fmt}{self.RESET}',
+            logging.INFO: f'{fmt}',
             logging.WARNING: f'{self.YELLOW}{fmt}{self.RESET}',
             logging.ERROR: f'{self.LIGHT_RED}{fmt}{self.RESET}',
             logging.CRITICAL: f'{self.RED}{fmt}{self.RESET}'
